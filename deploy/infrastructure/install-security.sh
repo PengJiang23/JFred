@@ -11,7 +11,7 @@ p=pathlib.Path('/etc/jfred-monitor/policy.json')
 # MongoDB is provisioned for future use and intentionally stopped; not a monitored outage.
 names=subprocess.check_output(['docker','ps','--format','{{.Names}}'],text=True).splitlines()
 names=[n for n in names if not n.startswith('1Panel-mongodb-')]
-policy={'containers':names,'units':['docker.service','v2raya.service','beszel-agent.service','actions.runner.PengJiang23-JFred.lianxiang-jfred.service']}
+policy={'containers':names,'units':['docker.service','v2raya.service','beszel-agent.service','auditd.service','jfred-backup.timer','jfred-private-ports.service','actions.runner.PengJiang23-JFred.lianxiang-jfred.service']}
 p.write_text(json.dumps(policy,indent=2));p.chmod(0o600)
 rules=[]
 for p,key in [('/etc/passwd','identity'),('/etc/group','identity'),('/etc/sudoers','privilege'),('/etc/sudoers.d','privilege'),('/etc/ssh/sshd_config','ssh'),('/etc/ssh/sshd_config.d','ssh'),('/root/.ssh','ssh'),('/home/jiangpeng/.ssh','ssh'),('/etc/systemd/system','persistence'),('/etc/crontab','persistence'),('/etc/cron.d','persistence'),('/var/spool/cron','persistence')]:
