@@ -1,8 +1,5 @@
 # Enable only after passwords are secured and jfred-private-ports firewall rules are installed.
 services:
-  artalk:
-    ports: !override
-      - "0.0.0.0:18081:23366"
   umami:
     ports: !override
       - "0.0.0.0:18082:3000"

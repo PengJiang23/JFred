@@ -9,8 +9,6 @@ if state_file.exists():
     state = json.loads(state_file.read_text())
 else:
     state = {'umami_username': 'admin', 'umami_password': secrets.token_urlsafe(24),
-             'artalk_name': 'PengJiang', 'artalk_email': 'admin@jfred.local',
-             'artalk_password': secrets.token_urlsafe(24),
              'website_id': 'fa4e9f07-6328-46d1-ad63-16ab7ec3682a', 'share_slug': 'jfred-public'}
     state_file.write_text(json.dumps(state, indent=2))
     state_file.chmod(0o600)

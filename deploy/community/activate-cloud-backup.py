@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
 """Enable daily cloud scheduling only after a verified encrypted cloud restore."""
+import pathlib,sys
+if pathlib.Path('/opt/jfred-backup/run-daily.py').exists():
+ print('Complete daily server backup is configured; manage it through jfred-backup.timer. Legacy schedules remain disabled.')
+ sys.exit(0)
+
 import datetime,json,pathlib,re,urllib.parse,urllib.request
 from zoneinfo import ZoneInfo
 root=pathlib.Path('/home/jiangpeng/services')

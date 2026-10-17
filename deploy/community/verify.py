@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integration check using a disposable analytics website and an unpublished comment."""
+"""Integration check using a disposable analytics website."""
 import json, re, time, uuid, urllib.request, urllib.error
 from pathlib import Path
 
@@ -47,9 +47,4 @@ except urllib.error.HTTPError as error:
     assert error.code==404,error.code
 print('PASS: public aggregate API works; session details are blocked by the proxy.')
 
-comment=api('http://192.168.0.108/blog/comments/api/v2/comments',{
-    'name':'JFred verification','email':'verification@example.invalid','content':'Temporary unpublished integration test.',
-    'page_key':'/blog/__jfred_qa__','page_title':'Disposable verification','site_name':'JFred'})
-assert comment.get('is_pending') is True or comment.get('is_pending')==1,comment
-Path('/home/jiangpeng/jfred-qa-comment.json').write_text(json.dumps({'id':comment['id'],'page_key':'/blog/__jfred_qa__'}))
-print('PASS: new comments enter the moderation queue, not the public stream.')
+print('Comments are hosted by GitHub Discussions via giscus; no local comment API remains.')

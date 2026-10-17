@@ -102,7 +102,10 @@ def check(state,now):
    a.check('container:'+name,bad,'关键容器 '+name+' 停止或健康检查失败',180)
   a.check('docker-collector',False,'Docker 容器状态无法采集',300)
  except Exception:a.check('docker-collector',True,'Docker 容器状态无法采集',300)
- exports=list(pathlib.Path('/opt/backups/jfred').glob('jfred-*.tar.gz'));age=now-max((x.stat().st_mtime for x in exports),default=0)
+ marker=pathlib.Path('/opt/backups/jfred/last-export.json')
+ exports=list(pathlib.Path('/opt/backups/jfred').glob('jfred-*.tar.gz'))
+ completed=json.loads(marker.read_text()).get('completed_at',0) if marker.exists() else max((x.stat().st_mtime for x in exports),default=0)
+ age=now-completed
  a.check('backup-age',age>36*3600,'最近一次数据库导出已超过 36 小时',300)
  # Check both encrypted jobs, so a healthy local export cannot hide a broken cloud job.
  try:

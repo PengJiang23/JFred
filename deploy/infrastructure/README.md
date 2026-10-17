@@ -34,7 +34,7 @@ appropriate maintenance window; no reboot was required for these fixes.
   private port. Authenticated ping passed. Currently unused, so intentionally
   stopped with `unless-stopped`. Start in 1Panel before a document-store application
   needs it. Add a least-privilege application user and backup export at that time.
-- Artalk, OpenList, Duplicati and Beszel retain supported SQLite storage, avoiding
+- OpenList, Duplicati and Beszel retain supported SQLite storage, avoiding
   unnecessary migrations and database connections.
 
 `db-1` was Compose's name for the old dedicated Umami PostgreSQL container. It was
@@ -145,3 +145,9 @@ sudo jfred-alertctl test      # 发送明确标记的测试卡片
 已验证真实飞书 @全体、Jumpen 接管、原卡片更新、单项静默、全局暂停、恢复通知和演练关闭。持久化测试覆盖重复事件、异群回调拒绝、重复回调保护、异常恢复及复发；实测全局暂停期间事件入库但不推送，已恢复事件不会延后刷屏。SDK 通道实测额外内存约210 MiB（主监控 Beszel + agent 约30 MiB），上限384 MiB，无 Docker/socket/root 权限。
 
 每日导出包含卡片 SQLite 一致性快照、应用配置、源代码、锁定依赖清单和 systemd 单元；恢复时先重建 venv 再恢复数据库。Mac 的账号总览：`~/.ssh/lianxiang-all-service-accounts.txt`，权限600；飞书应用凭证单独存放在 `~/.ssh/jfred-feishu-app.json`。
+
+### Complete server backups (2026-10-17 update)
+
+`deploy/backup` supersedes the initial blog-only exporter. Daily02:30 Asia/Shanghai runs four database exports (MySQL, PostgreSQL, Redis, offline MongoDB), per-project persistent-data/config bundles, native/1Panel recovery bundles and content-addressed Docker image archives. SQLite files are snapshotted online. Export names identify purpose and Beijing date; the recovery manifest and SHA256 list document coverage. Successful export then runs both AES destinations once, retaining30 days. See `deploy/backup/RESTORE.md` for ordering, consistency limits and restore guidance. All current applications are included; this is application recovery, not a bootable disk clone.
+
+Artalk was removed; GitHub Discussions/giscus hosts comments without a server container. Navigation links point to the GitHub Discussions console.

@@ -1,108 +1,13 @@
-# Community services and backups
+# Statistics, cloud storage and backups
 
-Separate from the immutable static-site container, `/opt/stacks/jfred-community`
-contains Artalk, Umami, Duplicati and OpenList. PostgreSQL is the shared instance
-installed through 1Panel, not a database container in this project. These services retain
-state across blog updates. Image tags are pinned; review upgrades before applying.
+The community stack now runs Umami, Duplicati and OpenList. Comments use the official `@giscus/vue` component backed by GitHub Discussions in `PengJiang23/JFred`; there is no local comment service or database.
 
-## Administration
+- Umami: port18082; shared 1Panel PostgreSQL, least-privilege application role.
+- Duplicati: port18083; AES-encrypted local and Aliyun Drive copies, 30-day history.
+- OpenList: port18084; Aliyun Drive Open mounted at `/aliyun`, restricted backup account maps WebDAV `/dav/` to `/aliyun/jfred-backups`.
 
-Admin listeners serve the LAN and EasyTier. Persistent `DOCKER-USER` firewall
-rules restrict published administration ports to 192.168.0.0/24, 10.144.144.0/24
-and loopback. No IPv6 listener is published for these administration ports. Default
-Umami credentials are replaced before enabling listeners. Access details are saved
-at `/home/jiangpeng/services/jfred-service-access.txt` (owner-only, never committed).
+Administration ports require the existing private network firewall. OpenResty only exposes aggregate analytics endpoints, never the admin UI/session lists. The blog's `/stats` page embeds public counts. IP+User-Agent with rotating daily salt counts anonymous daily readership; refreshes are not unique readers.
 
-- Artalk: `http://192.168.0.108:18081/` (login through Artalk sidebar/control center).
-- Umami: `http://192.168.0.108:18082/`.
-- Duplicati: `http://192.168.0.108:18083/`.
-- OpenList: `http://192.168.0.108:18084/`.
+Full-server backup and recovery are maintained in [../backup/RESTORE.md](../backup/RESTORE.md). `jfred-backup.timer` starts once daily at02:30 Asia/Shanghai: consistent database/application exports → encrypted local copy → encrypted Aliyun Drive copy. Independent Duplicati schedules are disabled so large exports cannot race uploads. The root-only source directory contains readable purpose-named files; destination `.aes` chunks retain Duplicati's own names.
 
-OpenResty proxies comments and a strict allowlist of analytics endpoints under
-`/blog/`. The true client address overwrites incoming forwarded-IP headers. Public
-Umami tokens can read only this website's overview aggregates; session/replay/admin
-APIs are not exposed through that prefix. Never put an admin token in frontend code.
-
-## Shared databases
-
-PostgreSQL 15.19-alpine is installed as `postgresql` in 1Panel. The Umami database
-and its limited `umami` login were migrated and all table counts matched. The old
-`jfred-community-db-1` container was removed; its data directory is retained only
-for rollback. Set private `POSTGRES_CONTAINER` and `POSTGRES_PASSWORD` to the
-shared instance and application login before installing these services. Umami
-joins the existing `1panel-network`; the database port remains private.
-
-MongoDB 8.0.15 is provisioned in 1Panel, authenticated and stopped until needed.
-No duplicate database should be added to future application Compose projects.
-Use a separate database/login per app with only the required privileges. Existing
-MySQL remains available; Artalk/OpenList/Duplicati/Beszel use their supported
-SQLite stores. See `../infrastructure/README.md` for resource and alert policies.
-
-This backup covers JFred's Umami database and service configuration. It does not
-yet back up unrelated MySQL/Redis applications or future MongoDB user data; add
-logical exports before storing new application data there.
-
-## Counting
-
-Umami `SALT_ROTATION=day`, `TZ=Asia/Shanghai`: IP + User-Agent + secret-derived
-rotating salt identify a visitor for one calendar day. Page heat uses `visitors`,
-not `pageviews`. The total accumulates distinct daily identifiers, not lifetime
-unique people. DNT is respected, query strings are stripped, and `.html`/trailing
-slash aliases are canonicalized before tracking. Artalk's own PV increment is off.
-
-## Backup scope
-
-`backup-jfred` uses `pg_dump -Fc` for analytics and SQLite's online backup API for
-Artalk, OpenList, Duplicati and Beszel. It includes monitoring configuration,
-PostgreSQL roles, shared database configuration, service keys and deployed image
-digest. Local tar archives have mode 600, retain seven exports, and run daily around
-02:30 Asia/Shanghai using a persistent systemd timer. They contain secrets and are
-not themselves encrypted. Duplicati encrypts them before cloud upload.
-
-No Docker socket or entire host filesystem is mounted into Duplicati. Its source
-is the export directory, read-only. Its own config directory persists separately.
-
-## Aliyun Drive backups
-
-OpenList mounts Aliyundrive Open at `/aliyun`. The dedicated `jfred-backup` user
-is restricted to `/aliyun/jfred-backups`, with WebDAV read/write permissions and
-no administration privileges. Its destination inside Compose is
-`webdav://openlist:5244/dav/`; the user base path maps this DAV root to the backup
-folder. Do not append `/aliyun/jfred-backups` again for this restricted user.
-
-`configure-backups.py` prepares AES-encrypted local and cloud jobs. Local backups
-run at 03:00 Asia/Shanghai; cloud scheduling is initially disabled. After cloud
-authorization, successful upload and restore verification,
-`activate-cloud-backup.py` enables the cloud job at 03:30. Both keep 30 days of
-versions, independent of the seven unencrypted source exports.
-
-On this server cloud authorization, WebDAV connection, encrypted upload and both
-local/cloud restores were verified on 2026-10-17. Restored archive SHA256 matched
-the original; all SQLite snapshots passed integrity checks and the PostgreSQL
-export restored into a separate test database. Daily cloud scheduling is enabled.
-
-Owner-only `/home/jiangpeng/services/jfred-backup-recovery.json` contains the AES
-passphrase and restricted WebDAV credentials. Keep a separate protected copy,
-along with `jfred-service-access.txt`; neither belongs in Git. Cloud authorization
-can expire, so check Duplicati task results and periodically repeat restoration.
-
-## OSS media
-
-`backup-data-j` is private, Hangzhou (`oss-cn-hangzhou.aliyuncs.com`). It is reserved
-for blog images/video; this setup neither uploads backups there nor changes bucket
-ACL, lifecycle or billing settings. Use local `docs/public/media/` assets meanwhile.
-Private OSS URLs need an authorized delivery design before embedding stable URLs:
-short-lived signatures are not permanent article links. Never expose AccessKey in JS.
-
-## Recovery check
-
-```sh
-sudo systemctl status jfred-backup.timer
-sudo /usr/local/sbin/backup-jfred
-sudo sha256sum -c /opt/backups/jfred/jfred-TIMESTAMP.tar.gz.sha256
-```
-
-Restore into a separate Compose project/network first. Stop services before replacing
-SQLite databases; restore PostgreSQL with `pg_restore --clean --if-exists` only into
-an empty test database. Keep app keys and Duplicati encryption/settings keys safely
-outside the only server that they protect. Never test restoration over live data.
+All live Artalk containers, image and data were removed2026-10-17 at the owner's request. Existing historical encrypted backup versions expire through normal retention; do not delete individual chunks belonging to mixed-service backup sets.

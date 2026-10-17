@@ -1,20 +1,5 @@
 name: jfred-community
 services:
-  artalk:
-    image: artalk/artalk-go:2.10.0
-    restart: unless-stopped
-    ports:
-      - '127.0.0.1:18081:23366'
-    environment:
-      TZ: Asia/Shanghai
-      ATK_LOCALE: zh-CN
-      ATK_SITE_DEFAULT: JFred
-      ATK_SITE_URL: http://192.168.0.108/blog/
-    volumes:
-      - ./artalk:/data
-    logging: &logging
-      driver: json-file
-      options: { max-size: '10m', max-file: '3' }
   umami:
     image: ghcr.io/umami-software/umami:3.4.0
     restart: unless-stopped
@@ -30,7 +15,9 @@ services:
       TZ: Asia/Shanghai
       DISABLE_TELEMETRY: '1'
       TRACKER_SCRIPT_NAME: script.js
-    logging: *logging
+    logging: &logging
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
   duplicati:
     image: duplicati/duplicati:2.4.0.1
     restart: unless-stopped

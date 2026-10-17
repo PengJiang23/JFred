@@ -39,8 +39,8 @@
           "icon": "chart-bar"
         },
         {
-          "name": "评论管理",
-          "url": "http://10.144.144.66:18081/",
+          "name": "GitHub 评论",
+          "url": "https://github.com/PengJiang23/JFred/discussions",
           "icon": "comment-text-outline"
         }
       ]
@@ -84,8 +84,8 @@
           "icon": "chart-bar"
         },
         {
-          "name": "评论管理",
-          "url": "http://192.168.0.108:18081/",
+          "name": "GitHub 评论",
+          "url": "https://github.com/PengJiang23/JFred/discussions",
           "icon": "comment-text-outline"
         }
       ]
