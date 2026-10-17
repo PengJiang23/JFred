@@ -41,4 +41,4 @@ sudo systemctl start --no-block jfred-backup.service
 sudo journalctl -u jfred-backup.service -n 50 --no-pager
 ```
 
-Duplicati 内两项任务由同一个系统定时器顺序触发，因此没有单独的内置计划时间属于正常状态。阿里云盘经 WebDAV，空闲传输超时设为5分钟；新加密卷使用10MiB以缩短重试/抽检窗口。保持30天历史版本，不要手工重命名 `.aes` 分块。
+Duplicati 内两项任务由同一个系统定时器顺序触发，因此没有单独的内置计划时间属于正常状态。阿里云盘经 WebDAV，空闲传输超时设为5分钟；现有50MiB分块保持不变，以兼容历史备份。保持30天历史版本，不要手工重命名 `.aes` 分块。
