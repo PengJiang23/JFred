@@ -14,9 +14,16 @@ def api(path,body=None,token=None):
  with urllib.request.urlopen(q,timeout=30) as f:return json.load(f)
 def token():return api('/auth/login',{'Password':password,'RememberMe':False})['AccessToken']
 subprocess.run(['/usr/bin/python3','/opt/jfred-backup/export-server.py'],check=True)
+if state.get('grouped_backups'):
+ subprocess.run(['/usr/bin/python3','/opt/jfred-backup/group-exports.py'],check=True)
+ assert set(state['grouped_backups'])=={'databases','applications','images'},'Incomplete category configuration'
+ jobs=[(destination+'/'+category,state['grouped_backups'][category][destination+'_backup_id'])
+       for destination in ['local','cloud'] for category in ['databases','applications','images']]
+else:
+ jobs=[(label,state[label+'_backup_id']) for label in ['local','cloud']]
 tasks={}
-for label in ['local','cloud']:
- t=token();i=api('/backup/'+str(state[label+'_backup_id'])+'/run',{},t)['ID'];deadline=time.time()+5*3600;tasks[label]=i
+for label,backup_id in jobs:
+ t=token();i=api('/backup/'+str(backup_id)+'/run',{},t)['ID'];deadline=time.time()+5*3600;tasks[label]=i
  while time.time()<deadline:
   status=api('/task/'+str(i),token=token())['Status']
   if status=='Completed':break

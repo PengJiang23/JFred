@@ -1,6 +1,17 @@
 # 联想服务器恢复说明
 
-备份入口：Duplicati → 恢复 → 选择日期 → `/source/daily/`。本机和阿里云盘为独立的 AES 加密副本，恢复口令在 Mac `~/.ssh/lianxiang-all-service-accounts.txt` 的“备份恢复”部分。另存此文件，不要只存在被备份的服务器上。
+备份入口：Duplicati → 恢复 → 选择“每日分类备份”的数据库、应用数据与配置或 Docker镜像任务 → 选择日期 → `/source/grouped/对应分类/`。原完整备份任务仍保留，旧日期继续从旧任务的 `/source/daily/` 恢复。恢复口令保持不变，在 Mac `~/.ssh/lianxiang-all-service-accounts.txt` 的“备份恢复”部分。另存此文件，不要只存在被备份的服务器上。
+
+本机和云盘各有三个独立 AES 备份集：
+
+```text
+/aliyun/jfred-backups/
+├── 数据库/
+├── 应用数据与配置/
+└── Docker镜像/
+```
+
+本机对应 `/opt/backups/jfred-duplicati/` 下同名目录。每个分类内的 `BACKUP-分类说明.json` 标明所属分类、导出时间和原始文件清单；新任务保留30天历史。云盘中的 AES 分块仍由 Duplicati 管理，不能按单块判断某个数据库或应用。原完整备份的数据保持原位，旧任务不再自动运行或清理。
 
 `daily/` 内的文件名区分用途，时间为北京时间：
 
@@ -13,13 +24,13 @@
 - `application-host-and-native-services-日期.tar.gz`：v2rayA、EasyTier、监控与飞书告警、系统服务配置、服务器账号及 SSH/部署凭据、GitHub runner 程序（排除工作缓存/日志）、飞书 SDK 安装包缓存。
 - `application-container-inventory-日期.json`：完整容器配置、环境、挂载、网络、镜像ID，含私密信息。
 - `recovery-manifest-日期.json`：本次导出清单；`SHA256SUMS.txt` 校验导出文件完整性。
-- `/source/application-images/application-image-镜像名-ID.docker.tar.gz`：对应当前安装应用的 Docker 镜像离线副本；内容不变不重复导出。
+- `Docker镜像/application-image-镜像名-ID.docker.tar.gz`：对应当前安装应用的 Docker 镜像离线副本；内容不变不重复导出。
 
 ## 整机恢复顺序
 
 1. 安装兼容 Ubuntu、Docker 和 Compose，确认数据盘挂载（当前 Docker 数据根目录在 `/disk512/docker`）。只在隔离的新机器演练，避免覆盖正在运行的服务。
 2. 安装 Duplicati，使用本机备份目录或阿里云盘 WebDAV 下载备份并输入 AES 恢复口令。如果原 OpenList 不可用，先从云盘取回完整 Duplicati 加密备份集，恢复到本地文件夹。
-3. 先恢复选定日期 `daily/` 和清单中引用的 `application-images/` 文件；运行 `sha256sum -c SHA256SUMS.txt`。
+3. 分别恢复同一批导出时间的三个分类目录（整机恢复需要三类；只恢复数据库或应用可只选对应分类）；每个分类内运行 `sha256sum -c SHA256SUMS.txt`。跨午夜备份以清单的导出时间对齐。旧完整备份则恢复 `daily/` 和清单中引用的 `application-images/`。
 4. 对每个镜像执行 `gzip -dc application-image-*.docker.tar.gz | docker load`（实际逐个文件执行）。清单中的 RepoDigest 可用于核对恢复镜像。离线镜像没有原 digest 标签时，从清单的 image ID 添加本地恢复标签，并修改 Compose 中的 image，避免无网络时重新 pull。
 5. 选择性解包 `application-*.tar.gz` 到新机器对应路径；档案内路径是相对 `/` 的 `opt/...`、`etc/...` 等。保留原 UID/GID 和权限。不要把旧机器的 `/etc/passwd`、`shadow`、网络、fstab 或 machine-id 不加检查地覆盖到新系统。
 6. 先恢复数据库。MySQL 使用同版本镜像，在空实例中导入 SQL；PostgreSQL 先用独立临时超级用户（如 `jfred_restore_admin`）初始化空实例，再用这个用户执行 `psql -X -v ON_ERROR_STOP=1 -d postgres` 导入解压后的 SQL；导入后按恢复配置重新连接原账号。不要以备份中将被重建的原角色导入。SQL 包含 DROP/CREATE 数据库和角色，只能在隔离实例中操作。MongoDB 冷备只在停止的同版本 MongoDB 容器恢复；Redis 停止后恢复 RDB 到数据目录，并确保新实例不会优先加载旧 AOF。
@@ -41,4 +52,6 @@ sudo systemctl start --no-block jfred-backup.service
 sudo journalctl -u jfred-backup.service -n 50 --no-pager
 ```
 
-Duplicati 内两项任务由同一个系统定时器顺序触发，因此没有单独的内置计划时间属于正常状态。阿里云盘经 WebDAV，空闲传输超时设为5分钟；现有50MiB分块保持不变，以兼容历史备份。保持30天历史版本，不要手工重命名 `.aes` 分块。
+Duplicati 内六项新任务由同一个系统定时器每天北京时间02:30触发一次，统一导出完成后顺序执行本机三类、云端三类；没有单独的内置计划时间属于正常状态。原两项完整备份不再自动触发，保留原数据及设置，暂不自动清理。阿里云盘经 WebDAV，空闲传输超时为5分钟；新备份集使用10MiB分块以缩短云端抽查等待，旧备份集的50MiB分块保持不变。不要手工重命名或删除 `.aes` 分块。
+
+分类导出目录通过硬链接引用同一批导出文件，避免再占用一份明文空间。每批导出会核对数据库、应用与镜像分类清单，发现未分类文件或校验值不匹配会停止执行。首次迁移会为三个新目录各生成完整备份，之后增量；保留旧备份期间，云盘会同时占用新、旧备份空间。

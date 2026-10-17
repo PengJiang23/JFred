@@ -9,11 +9,16 @@ def api(path,body=None,t=None):
  with urllib.request.urlopen(q,timeout=30) as f:
   raw=f.read();return json.loads(raw) if raw else {}
 def login():return api('/auth/login',{'Password':p,'RememberMe':False})['AccessToken']
-root=pathlib.Path('/opt/backups/jfred/daily');chosen=[next(root.glob('recovery-manifest-*.json'))];proof=[]
-for label in ['local','cloud']:
+root=pathlib.Path('/opt/backups/jfred');proof=[]
+if s.get('grouped_backups'):
+ jobs=[(destination+'/'+category,group[destination+'_backup_id'],[root/'grouped'/group['name']/'BACKUP-分类说明.json'])
+       for destination in ['local','cloud'] for category,group in s['grouped_backups'].items()]
+else:
+ jobs=[(label,s[label+'_backup_id'],[next((root/'daily').glob('recovery-manifest-*.json'))]) for label in ['local','cloud']]
+for label,backup_id,chosen in jobs:
  key='restore-validation-'+uuid.uuid4().hex;host=pathlib.Path('/opt/stacks/jfred-community/duplicati')/key
- data={'paths':['/source/daily/'+f.name for f in chosen],'passphrase':s['encryption_passphrase'],'time':'now','restore_path':'/data/'+key,'overwrite':False,'permissions':False,'skip_metadata':True,'options':{'restore-with-local-blocks':'false','restore-from-local-blocks':'false'}}
- task=api('/backup/'+str(s[label+'_backup_id'])+'/restore',data,login())['ID'];deadline=time.time()+1200
+ data={'paths':['/source/'+str(f.relative_to(root)) for f in chosen],'passphrase':s['encryption_passphrase'],'time':'now','restore_path':'/data/'+key,'overwrite':False,'permissions':False,'skip_metadata':True,'options':{'restore-with-local-blocks':'false','restore-from-local-blocks':'false'}}
+ task=api('/backup/'+str(backup_id)+'/restore',data,login())['ID'];deadline=time.time()+1200
  try:
   while time.time()<deadline:
    v=api('/task/'+str(task),t=login())
@@ -24,8 +29,9 @@ for label in ['local','cloud']:
   for f in chosen:
    matches=list(host.rglob(f.name));assert len(matches)==1
    assert hashlib.file_digest(matches[0].open('rb'),'sha256').hexdigest()==hashlib.file_digest(f.open('rb'),'sha256').hexdigest()
+  print('Verified encrypted restore '+label,flush=True)
   proof.append({'destination':label,'restore_task':task,'files_verified':[f.name for f in chosen],'sha256_matches':True})
  finally:
   if host.exists():shutil.rmtree(host)
-path=pathlib.Path('/home/jiangpeng/jfred-encrypted-copy-proof.json');path.write_text(json.dumps(proof,indent=2));path.chmod(0o644)
+path=pathlib.Path('/home/jiangpeng/'+('jfred-grouped-backup-proof.json' if s.get('grouped_backups') else 'jfred-encrypted-copy-proof.json'));path.write_text(json.dumps(proof,indent=2));path.chmod(0o644)
 print('PASS: local and cloud AES restores match original exported files.')
