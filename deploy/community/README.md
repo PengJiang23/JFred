@@ -34,28 +34,34 @@ slash aliases are canonicalized before tracking. Artalk's own PV increment is of
 Artalk, OpenList and Duplicati. It includes service keys/config and deployed image
 digest. Local tar archives have mode 600, retain seven exports, and run daily around
 02:30 Asia/Shanghai using a persistent systemd timer. They contain secrets and are
-not themselves encrypted. Duplicati should encrypt them before cloud upload.
+not themselves encrypted. Duplicati encrypts them before cloud upload.
 
 No Docker socket or entire host filesystem is mounted into Duplicati. Its source
 is the export directory, read-only. Its own config directory persists separately.
 
-## Aliyun Drive connection (user authorization required)
+## Aliyun Drive backups
 
-1. Sign into OpenList; add **Aliyundrive Open** storage at `/aliyun` and complete its
-   official account authorization flow yourself. Do not paste a refresh token into
-   source control or chat. Select the drive/folder you intend to use for backups.
-2. In Duplicati create an encrypted backup. Source: `/source/`. Destination: WebDAV,
-   server `openlist`, port `5244`, path `/dav/aliyun/jfred-backups`. These names use
-   the private Compose network, not a public endpoint. Enter OpenList credentials
-   privately. Prefer a dedicated restricted WebDAV user for this path after mounting.
-3. Choose and separately save the backup encryption passphrase. Run at 03:30, after
-   local exports. Keep at least 30 days of cloud versions; local retention is separate.
-4. Test connection, run a backup, and restore files into a new directory. Check
-   SHA256 and restore the databases in an isolated instance before calling it ready.
+OpenList mounts Aliyundrive Open at `/aliyun`. The dedicated `jfred-backup` user
+is restricted to `/aliyun/jfred-backups`, with WebDAV read/write permissions and
+no administration privileges. Its destination inside Compose is
+`webdav://openlist:5244/dav/`; the user base path maps this DAV root to the backup
+folder. Do not append `/aliyun/jfred-backups` again for this restricted user.
 
-Cloud upload remains pending until authorization, encryption and restore testing
-are complete. If the WebDAV connection cannot reliably upload/list/delete backup
-volumes, use a supported alternative destination rather than silently losing backups.
+`configure-backups.py` prepares AES-encrypted local and cloud jobs. Local backups
+run at 03:00 Asia/Shanghai; cloud scheduling is initially disabled. After cloud
+authorization, successful upload and restore verification,
+`activate-cloud-backup.py` enables the cloud job at 03:30. Both keep 30 days of
+versions, independent of the seven unencrypted source exports.
+
+On this server cloud authorization, WebDAV connection, encrypted upload and both
+local/cloud restores were verified on 2026-10-17. Restored archive SHA256 matched
+the original; all SQLite snapshots passed integrity checks and the PostgreSQL
+export restored into a separate test database. Daily cloud scheduling is enabled.
+
+Owner-only `/home/jiangpeng/services/jfred-backup-recovery.json` contains the AES
+passphrase and restricted WebDAV credentials. Keep a separate protected copy,
+along with `jfred-service-access.txt`; neither belongs in Git. Cloud authorization
+can expire, so check Duplicati task results and periodically repeat restoration.
 
 ## OSS media
 

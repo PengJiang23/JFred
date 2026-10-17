@@ -6,7 +6,7 @@ stack=/opt/stacks/jfred-community
 umask 077
 install -d -m 700 "$stack" "$stack/artalk" "$stack/duplicati" "$stack/openlist" /opt/backups/jfred /opt/backups/jfred-duplicati
 chown 1001:1001 "$stack/openlist"
-for file in compose.yaml admin-access.yaml bootstrap.py openresty.conf backup.sh; do
+for file in compose.yaml admin-access.yaml bootstrap.py openresty.conf backup.sh configure-backups.py; do
     install -o root -g root -m 600 "$src/$file" "$stack/$file"
 done
 if [[ ! -f "$stack/.env" ]]; then
@@ -114,6 +114,10 @@ t+=f"Artalk: http://192.168.0.108:18081/\nName: {s['artalk_name']}\nEmail: {s['a
 t+=f"Umami: http://192.168.0.108:18082/\nUsername: {s['umami_username']}\nPassword: {s['umami_password']}\n\n"
 t+=f"Duplicati: http://192.168.0.108:18083/\nPassword: {e['DUPLICATI_PASSWORD']}\n\nCloud backup: Aliyun Drive via OpenList WebDAV (authorization pending).\nWebDAV URL inside Docker: http://openlist:5244/dav/aliyun/jfred-backups\nOSS bucket backup-data-j (Hangzhou) is reserved for blog media; no OSS backup job is enabled.\n"
 t+=f"OpenList: http://192.168.0.108:18084/\nUsername: admin\nPassword: {e['OPENLIST_PASSWORD']}\nCloud drive: authorize Aliyun Drive yourself; no refresh token configured.\n"
+recovery=pathlib.Path('/home/jiangpeng/services/jfred-backup-recovery.json')
+if recovery.exists() and json.loads(recovery.read_text()).get('cloud_enabled'):
+ t=t.replace('Cloud backup: Aliyun Drive via OpenList WebDAV (authorization pending).','Cloud backup: Aliyun Drive via restricted OpenList WebDAV; verified and scheduled daily at 03:30 Asia/Shanghai.').replace('Cloud drive: authorize Aliyun Drive yourself; no refresh token configured.','Cloud drive connected at /aliyun. Backup folder: /aliyun/jfred-backups.').replace('http://openlist:5244/dav/aliyun/jfred-backups','http://openlist:5244/dav/')
 f=pathlib.Path('/home/jiangpeng/services/jfred-service-access.txt'); f.write_text(t); f.chmod(0o600); os.chown(f,1000,1000)
 PY
-echo 'Community services and daily local backup configured. Aliyun Drive authorization still required.'
+runuser -u jiangpeng -- python3 "$src/configure-backups.py"
+echo 'Community services configured. Check the private access file for current cloud authorization status.'

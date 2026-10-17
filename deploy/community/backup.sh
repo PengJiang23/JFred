@@ -26,13 +26,17 @@ import sqlite3,sys,shutil
 root,out=map(Path,sys.argv[1:])
 for service in ['openlist','duplicati']:
  target=out/service; target.mkdir()
- for f in (root/service).iterdir():
+ for f in (root/service).rglob('*'):
+  if not f.is_file():
+   continue
+  destination=target/f.relative_to(root/service)
+  destination.parent.mkdir(parents=True,exist_ok=True)
   if f.is_file() and f.suffix.lower() in ['.db','.sqlite']:
-   with sqlite3.connect('file:'+str(f)+'?mode=ro',uri=True) as source, sqlite3.connect(target/f.name) as dest:
+   with sqlite3.connect('file:'+str(f)+'?mode=ro',uri=True) as source, sqlite3.connect(destination) as dest:
     source.backup(dest)
     assert dest.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
-  elif f.is_file() and f.suffix=='.json':
-   shutil.copy2(f,target/f.name)
+  elif f.suffix in ['.json','.txt']:
+   shutil.copy2(f,destination)
 PYSQL
 cp -a "$stack/.env" "$stack/access.json" "$stack/compose.yaml" "$stack/admin-access.yaml" "$stack/artalk/artalk.yml" "$work/config/community/"
 cp -a /opt/stacks/jfred/compose.yaml /opt/stacks/jfred/.env "$work/config/blog/" 2>/dev/null || true
