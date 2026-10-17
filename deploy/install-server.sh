@@ -20,7 +20,11 @@ if [[ ! -f "$runner/.runner" ]]; then
     [[ -s "$runner/.registration-token" ]] || { echo 'Runner registration token is missing.' >&2; exit 1; }
     registration_token=$(cat "$runner/.registration-token")
     cd "$runner"
-    runuser -u jiangpeng -- ./config.sh \
+    runuser -u jiangpeng -- env \
+        https_proxy=http://127.0.0.1:20172 \
+        http_proxy=http://127.0.0.1:20172 \
+        no_proxy=localhost,127.0.0.1,192.168.0.108 \
+        ./config.sh \
         --url https://github.com/PengJiang23/JFred \
         --token "$registration_token" \
         --name lianxiang-jfred \
@@ -31,6 +35,19 @@ if [[ ! -f "$runner/.runner" ]]; then
     unset registration_token
 fi
 cd "$runner"
+python3 - <<'PY'
+from pathlib import Path
+p = Path('.env')
+lines = p.read_text().splitlines() if p.exists() else []
+keys = ('https_proxy=', 'http_proxy=', 'no_proxy=')
+lines = [line for line in lines if not line.startswith(keys)]
+lines += ['https_proxy=http://127.0.0.1:20172',
+          'http_proxy=http://127.0.0.1:20172',
+          'no_proxy=localhost,127.0.0.1,192.168.0.108']
+p.write_text('\n'.join(lines) + '\n')
+PY
+chown jiangpeng:jiangpeng .env
+chmod 600 .env
 if [[ ! -f .service ]]; then
     ./svc.sh install jiangpeng
 fi
