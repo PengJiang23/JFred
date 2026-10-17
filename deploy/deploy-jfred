@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+[[ $EUID -eq 0 && $# -eq 2 ]] || exit 2
+image=$1
+actor=$2
+[[ "$image" =~ ^ghcr\.io/pengjiang23/jfred@sha256:[a-f0-9]{64}$ ]] || exit 2
+[[ "$actor" =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || exit 2
+stack=/opt/stacks/jfred
+exec 9>/run/lock/deploy-jfred.lock
+flock -w 120 9
+umask 077
+registry_config=$(mktemp -d /run/jfred-registry.XXXXXX)
+trap 'rm -rf "$registry_config"' EXIT
+docker --config "$registry_config" login ghcr.io --username "$actor" --password-stdin
+docker --config "$registry_config" pull "$image"
+previous=''
+if [[ -f "$stack/.env" ]]; then
+    previous=$(cat "$stack/.env")
+fi
+printf 'JFRED_IMAGE=%s\n' "$image" > "$stack/.env.next"
+mv "$stack/.env.next" "$stack/.env"
+if ! docker compose --project-directory "$stack" -f "$stack/compose.yaml" up -d --no-build --wait --wait-timeout 120; then
+    echo 'Deployment failed; restoring the previous image.' >&2
+    if [[ -n "$previous" ]]; then
+        printf '%s\n' "$previous" > "$stack/.env"
+        docker compose --project-directory "$stack" -f "$stack/compose.yaml" up -d --no-build --wait --wait-timeout 120
+    fi
+    exit 1
+fi
+if [[ -n "$previous" ]]; then
+    printf '%s\n' "$previous" > "$stack/.env.previous"
+fi
+curl --noproxy '*' --fail --silent --show-error http://127.0.0.1:18080/ -o /dev/null
+docker compose --project-directory "$stack" -f "$stack/compose.yaml" ps

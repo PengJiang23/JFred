@@ -2,7 +2,7 @@ import { defineConfig } from 'vitepress'
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  base: "/JFred/",
+  base: process.env.VITEPRESS_BASE || "/JFred/",
   title: "JFred",
   description: "个人笔记",
   themeConfig: {
