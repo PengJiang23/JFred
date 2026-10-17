@@ -3,6 +3,7 @@ import type { Theme } from 'vitepress'
 import DefaultTheme from 'vitepress/theme'
 import HomePage from './components/HomePage.vue'
 import TopicsPage from './components/TopicsPage.vue'
+import StatsPage from './components/StatsPage.vue'
 import Discussion from './components/Discussion.vue'
 import ArticleHeader from './components/ArticleHeader.vue'
 import SiteTracker from './components/SiteTracker.vue'
@@ -18,5 +19,6 @@ export default {
   enhanceApp({ app }) {
     app.component('HomePage', HomePage)
     app.component('TopicsPage', TopicsPage)
+    app.component('StatsPage', StatsPage)
   },
 } satisfies Theme

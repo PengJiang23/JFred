@@ -20,6 +20,7 @@ const phase = ref(0)
 const phases = ['AI 学习', '理财', '兴趣']
 const href = (url: string) => url.startsWith('/') ? withBase(url) : url
 const commands = computed(() => [
+  { title: '查看访客统计', href: '/stats', group: '页面', icon: 'book' },
   { title: '浏览专题目录', href: '/topics/', group: '页面', icon: 'code' },
   { title: '浏览全部笔记', href: '#notes', group: '页面', icon: 'book' },
   { title: '关于这个空间', href: '#about', group: '页面', icon: 'sun' },
@@ -82,9 +83,9 @@ onUnmounted(() => { window.removeEventListener('keydown', onKey); document.body.
     <a class="jf-skip" href="#main">跳到内容</a>
     <header class="jf-header">
       <a class="jf-brand" :href="withBase('/')" aria-label="JFred 首页"><span class="jf-mark"><i></i><i></i><i></i></span>JFred<span class="jf-brand-dot">.</span></a>
-      <nav class="jf-nav" aria-label="主导航"><a :href="withBase('/topics/')">专题</a><a href="#notes">笔记</a><a href="#about">关于</a></nav>
+      <nav class="jf-nav" aria-label="主导航"><a :href="withBase('/topics/')">专题</a><a href="#notes">笔记</a><a href="#about">关于</a><a :href="withBase('/stats')">访客统计</a></nav>
       <div class="jf-header-actions"><button class="jf-search" @click="openCommand" aria-label="打开快捷导航"><Icon name="search" :size="16" /><span>快捷导航</span><kbd>⌘ K</kbd></button><a class="jf-github" :href="home.github" target="_blank" rel="noopener noreferrer">GitHub <Icon name="arrow" :size="15" /></a><button class="jf-mobile-toggle" @click="menuOpen = !menuOpen" :aria-expanded="menuOpen" aria-label="切换导航菜单"><Icon :name="menuOpen ? 'close' : 'menu'" /></button></div>
-      <nav v-if="menuOpen" class="jf-mobile-nav" aria-label="移动端导航"><a v-for="item in [['专题', withBase('/topics/')], ['笔记', '#notes'], ['关于', '#about']]" :href="item[1]" @click="menuOpen = false">{{ item[0] }}<Icon name="right" /></a><button @click="openCommand">快捷导航<Icon name="search" /></button></nav>
+      <nav v-if="menuOpen" class="jf-mobile-nav" aria-label="移动端导航"><a v-for="item in [['专题', withBase('/topics/')], ['笔记', '#notes'], ['关于', '#about'], ['访客统计', withBase('/stats')]]" :href="item[1]" @click="menuOpen = false">{{ item[0] }}<Icon name="right" /></a><button @click="openCommand">快捷导航<Icon name="search" /></button></nav>
     </header>
 
     <main id="main">

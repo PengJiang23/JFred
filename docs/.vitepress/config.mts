@@ -18,6 +18,7 @@ export default withMermaid(defineConfig({
       { text: 'AI 学习', link: '/topics/ai/' },
       { text: '理财', link: '/topics/finance/' },
       { text: '兴趣', link: '/topics/hobbies/' },
+      { text: '访客统计', link: '/stats' },
     ],
     sidebar: [
       ...topicSidebar,
