@@ -1,0 +1,22 @@
+[Unit]
+Description=Beszel local resource monitoring agent
+After=docker.service network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+EnvironmentFile=/etc/jfred-monitor/beszel-agent.env
+ExecStart=/usr/local/bin/beszel-agent
+Restart=always
+RestartSec=10
+StateDirectory=beszel-agent
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/var/lib/beszel-agent
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+MemoryMax=128M
+[Install]
+WantedBy=multi-user.target

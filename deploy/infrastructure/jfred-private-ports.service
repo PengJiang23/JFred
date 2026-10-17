@@ -1,0 +1,11 @@
+[Unit]
+Description=Restrict Docker administration ports to LAN and EasyTier
+After=docker.service
+Requires=docker.service
+PartOf=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/jfred-private-ports
+RemainAfterExit=yes
+[Install]
+WantedBy=docker.service

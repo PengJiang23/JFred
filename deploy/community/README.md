@@ -1,13 +1,16 @@
 # Community services and backups
 
 Separate from the immutable static-site container, `/opt/stacks/jfred-community`
-contains Artalk, Umami/PostgreSQL, Duplicati and OpenList. These services retain
+contains Artalk, Umami, Duplicati and OpenList. PostgreSQL is the shared instance
+installed through 1Panel, not a database container in this project. These services retain
 state across blog updates. Image tags are pinned; review upgrades before applying.
 
 ## Administration
 
-Admin listeners bind only to the server's LAN address and loopback. Default Umami
-credentials are replaced before enabling LAN listeners. Access details are saved
+Admin listeners serve the LAN and EasyTier. Persistent `DOCKER-USER` firewall
+rules restrict published administration ports to 192.168.0.0/24, 10.144.144.0/24
+and loopback. No IPv6 listener is published for these administration ports. Default
+Umami credentials are replaced before enabling listeners. Access details are saved
 at `/home/jiangpeng/services/jfred-service-access.txt` (owner-only, never committed).
 
 - Artalk: `http://192.168.0.108:18081/` (login through Artalk sidebar/control center).
@@ -20,6 +23,25 @@ OpenResty proxies comments and a strict allowlist of analytics endpoints under
 Umami tokens can read only this website's overview aggregates; session/replay/admin
 APIs are not exposed through that prefix. Never put an admin token in frontend code.
 
+## Shared databases
+
+PostgreSQL 15.19-alpine is installed as `postgresql` in 1Panel. The Umami database
+and its limited `umami` login were migrated and all table counts matched. The old
+`jfred-community-db-1` container was removed; its data directory is retained only
+for rollback. Set private `POSTGRES_CONTAINER` and `POSTGRES_PASSWORD` to the
+shared instance and application login before installing these services. Umami
+joins the existing `1panel-network`; the database port remains private.
+
+MongoDB 8.0.15 is provisioned in 1Panel, authenticated and stopped until needed.
+No duplicate database should be added to future application Compose projects.
+Use a separate database/login per app with only the required privileges. Existing
+MySQL remains available; Artalk/OpenList/Duplicati/Beszel use their supported
+SQLite stores. See `../infrastructure/README.md` for resource and alert policies.
+
+This backup covers JFred's Umami database and service configuration. It does not
+yet back up unrelated MySQL/Redis applications or future MongoDB user data; add
+logical exports before storing new application data there.
+
 ## Counting
 
 Umami `SALT_ROTATION=day`, `TZ=Asia/Shanghai`: IP + User-Agent + secret-derived
@@ -31,7 +53,8 @@ slash aliases are canonicalized before tracking. Artalk's own PV increment is of
 ## Backup scope
 
 `backup-jfred` uses `pg_dump -Fc` for analytics and SQLite's online backup API for
-Artalk, OpenList and Duplicati. It includes service keys/config and deployed image
+Artalk, OpenList, Duplicati and Beszel. It includes monitoring configuration,
+PostgreSQL roles, shared database configuration, service keys and deployed image
 digest. Local tar archives have mode 600, retain seven exports, and run daily around
 02:30 Asia/Shanghai using a persistent systemd timer. They contain secrets and are
 not themselves encrypted. Duplicati encrypts them before cloud upload.

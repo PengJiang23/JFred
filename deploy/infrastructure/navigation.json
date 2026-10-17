@@ -1,0 +1,113 @@
+{
+  "apps": [
+    {
+      "name": "EasyTier · 随处访问",
+      "items": [
+        {
+          "name": "个人网站",
+          "url": "http://10.144.144.66/blog/",
+          "icon": "book-open-variant"
+        },
+        {
+          "name": "访客统计",
+          "url": "http://10.144.144.66/blog/stats",
+          "icon": "chart-line"
+        },
+        {
+          "name": "1Panel",
+          "url": "http://10.144.144.66:22501/",
+          "icon": "server"
+        },
+        {
+          "name": "资源监控",
+          "url": "http://10.144.144.66:18086/",
+          "icon": "pulse"
+        },
+        {
+          "name": "文件与云盘",
+          "url": "http://10.144.144.66:18084/",
+          "icon": "folder-multiple-outline"
+        },
+        {
+          "name": "加密备份",
+          "url": "http://10.144.144.66:18083/",
+          "icon": "backup-restore"
+        },
+        {
+          "name": "访客管理",
+          "url": "http://10.144.144.66:18082/",
+          "icon": "chart-bar"
+        },
+        {
+          "name": "评论管理",
+          "url": "http://10.144.144.66:18081/",
+          "icon": "comment-text-outline"
+        }
+      ]
+    },
+    {
+      "name": "局域网 · 家中访问",
+      "items": [
+        {
+          "name": "个人网站",
+          "url": "http://192.168.0.108/blog/",
+          "icon": "book-open-variant"
+        },
+        {
+          "name": "访客统计",
+          "url": "http://192.168.0.108/blog/stats",
+          "icon": "chart-line"
+        },
+        {
+          "name": "1Panel",
+          "url": "http://192.168.0.108:22501/",
+          "icon": "server"
+        },
+        {
+          "name": "资源监控",
+          "url": "http://192.168.0.108:18086/",
+          "icon": "pulse"
+        },
+        {
+          "name": "文件与云盘",
+          "url": "http://192.168.0.108:18084/",
+          "icon": "folder-multiple-outline"
+        },
+        {
+          "name": "加密备份",
+          "url": "http://192.168.0.108:18083/",
+          "icon": "backup-restore"
+        },
+        {
+          "name": "访客管理",
+          "url": "http://192.168.0.108:18082/",
+          "icon": "chart-bar"
+        },
+        {
+          "name": "评论管理",
+          "url": "http://192.168.0.108:18081/",
+          "icon": "comment-text-outline"
+        }
+      ]
+    }
+  ],
+  "bookmarks": [
+    {
+      "category": "维护与说明",
+      "links": [
+        {
+          "name": "部署流水线",
+          "url": "https://github.com/PengJiang23/JFred/actions"
+        },
+        {
+          "name": "评论与统计说明",
+          "url": "http://10.144.144.66/blog/privacy"
+        },
+        {
+          "name": "站点源码",
+          "url": "https://github.com/PengJiang23/JFred"
+        }
+      ]
+    }
+  ]
+}

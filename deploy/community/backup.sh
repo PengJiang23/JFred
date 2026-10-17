@@ -10,7 +10,9 @@ work=$(mktemp -d "$base/.export.XXXXXX")
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$work/config/community" "$work/config/blog" "$work/artalk"
 cd "$stack"
-docker compose exec -T db pg_dump -U umami -d umami -Fc > "$work/umami.pgdump"
+database_container=$(sed -n 's/^POSTGRES_CONTAINER=//p' "$stack/.env" | tail -n 1)
+[[ -n "$database_container" ]] || { echo 'Shared PostgreSQL container missing'; exit 1; }
+docker exec "$database_container" pg_dump -U umami -d umami -Fc > "$work/umami.pgdump"
 # SQLite's backup API takes a consistent snapshot, including WAL content.
 python3 - "$stack/artalk/artalk.db" "$work/artalk/artalk.db" <<'PY'
 import sqlite3, sys
@@ -42,10 +44,44 @@ cp -a "$stack/.env" "$stack/access.json" "$stack/compose.yaml" "$stack/admin-acc
 cp -a /opt/stacks/jfred/compose.yaml /opt/stacks/jfred/.env "$work/config/blog/" 2>/dev/null || true
 cp "$stack/openresty.conf" "$work/config/community/"
 if [[ -d "$stack/artalk/uploads" ]]; then cp -a "$stack/artalk/uploads" "$work/artalk/"; fi
+# The monitoring hub uses SQLite too; snapshot it rather than copying a live WAL DB.
+python3 - "$work" <<'PYINFRA'
+from pathlib import Path
+import shutil,sqlite3,sys
+out=Path(sys.argv[1])
+for root,name in [(Path('/opt/stacks/jfred-infrastructure'),'infrastructure'),(Path('/etc/jfred-monitor'),'monitor-config')]:
+ if not root.exists():continue
+ for f in root.rglob('*'):
+  if not f.is_file() or f.name.endswith(('-wal','-shm')):continue
+  dest=out/name/f.relative_to(root);dest.parent.mkdir(parents=True,exist_ok=True)
+  if f.suffix in ['.db','.sqlite']:
+   with sqlite3.connect('file:'+str(f)+'?mode=ro',uri=True) as source,sqlite3.connect(dest) as target:
+    source.backup(target);assert target.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+  else:shutil.copy2(f,dest)
+for service in ['postgresql','mongodb']:
+ root=Path('/opt/1panel/apps')/service/service;target=out/'config'/'shared-databases'/service
+ if not root.exists():continue
+ target.mkdir(parents=True,exist_ok=True)
+ for name in ['.env','docker-compose.yml','data.yml']:
+  if (root/name).exists():shutil.copy2(root/name,target/name)
+for name in ['jfred-security.service','jfred-security.timer','beszel-agent.service','jfred-private-ports.service']:
+ f=Path('/etc/systemd/system')/name
+ if f.exists():
+  target=out/'config'/'systemd';target.mkdir(parents=True,exist_ok=True);shutil.copy2(f,target/name)
+for path in ['/etc/audit/rules.d/70-jfred.rules','/usr/local/sbin/jfred-security-watch','/usr/local/sbin/jfred-private-ports']:
+ f=Path(path)
+ if f.exists():
+  target=out/'config'/'monitor-scripts';target.mkdir(parents=True,exist_ok=True);shutil.copy2(f,target/f.name)
+PYINFRA
+# Shared PostgreSQL roles allow recreating the application login during disaster recovery.
+pg_admin=$(docker exec "$database_container" printenv POSTGRES_USER)
+docker exec "$database_container" pg_dumpall -U "$pg_admin" --globals-only > "$work/postgres-roles.sql"
 cat > "$work/RESTORE.txt" <<'NOTE'
 Contains secrets: keep this archive private and encrypt it before cloud upload.
 Restore configuration into /opt/stacks/jfred-community (directory mode 700).
-Start only the PostgreSQL service, then restore umami.pgdump with pg_restore.
+Provision the shared PostgreSQL service in 1Panel first. Restore roles as needed, then umami.pgdump with pg_restore.
+The archive includes shared database configuration, not other MySQL/Redis application data.
+MongoDB is currently unused and stopped; add logical database backups before using it for new application data.
 Stop Artalk before restoring artalk/artalk.db; remove stale -wal/-shm only while stopped.
 Restore app keys and restart services. Do a recovery test in a separate project first.
 Website source is also versioned in GitHub; blog image digest is included in config.

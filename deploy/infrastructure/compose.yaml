@@ -1,0 +1,29 @@
+name: jfred-infrastructure
+services:
+  navigation:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:18085:80'
+    volumes:
+      - ./navigation:/usr/share/nginx/html:ro
+    mem_limit: 64m
+    logging: &logging
+      driver: json-file
+      options: {max-size: '10m', max-file: '3'}
+  beszel:
+    image: henrygd/beszel:0.21.0
+    restart: unless-stopped
+    ports:
+      - '0.0.0.0:18086:8090'
+    environment:
+      TZ: Asia/Shanghai
+      APP_URL: http://10.144.144.66:18086
+      USER_EMAIL: ${BESZEL_EMAIL:?Required}
+      USER_PASSWORD: ${BESZEL_PASSWORD:?Required}
+      CONTAINER_DETAILS: 'false'
+      CHECK_UPDATES: 'false'
+    volumes:
+      - ./beszel:/beszel_data
+    mem_limit: 256m
+    logging: *logging

@@ -4,6 +4,8 @@ set -Eeuo pipefail
 src=$(cd "$(dirname "$0")" && pwd)
 stack=/opt/stacks/jfred-community
 umask 077
+[[ -x /usr/local/sbin/jfred-private-ports ]] || { echo 'Install the private administration firewall rules first.'; exit 1; }
+/usr/local/sbin/jfred-private-ports
 install -d -m 700 "$stack" "$stack/artalk" "$stack/duplicati" "$stack/openlist" /opt/backups/jfred /opt/backups/jfred-duplicati
 chown 1001:1001 "$stack/openlist"
 for file in compose.yaml admin-access.yaml bootstrap.py openresty.conf backup.sh configure-backups.py; do
@@ -54,7 +56,9 @@ frontend:
 CONFIG
 fi
 cd "$stack"
-docker compose up -d db artalk umami duplicati openlist
+# Provision the shared database in 1Panel first; never recreate a per-app database.
+grep -q '^POSTGRES_CONTAINER=' "$stack/.env" || { echo 'Configure POSTGRES_CONTAINER in the private .env for the shared 1Panel PostgreSQL instance first.'; exit 1; }
+docker compose up -d artalk umami duplicati openlist
 python3 "$stack/bootstrap.py"
 if [[ ! -f "$stack/.artalk-admin-ready" ]]; then
     python3 - <<'PY'

@@ -15,31 +15,15 @@ services:
     logging: &logging
       driver: json-file
       options: { max-size: '10m', max-file: '3' }
-  db:
-    image: postgres:15-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: umami
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
-      POSTGRES_DB: umami
-    volumes:
-      - ./postgres:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U umami -d umami']
-      interval: 5s
-      timeout: 5s
-      retries: 30
-    logging: *logging
   umami:
     image: ghcr.io/umami-software/umami:3.4.0
     restart: unless-stopped
     init: true
-    depends_on:
-      db: { condition: service_healthy }
+    networks: [default, database]
     ports:
       - '127.0.0.1:18082:3000'
     environment:
-      DATABASE_URL: postgresql://umami:${POSTGRES_PASSWORD}@db:5432/umami
+      DATABASE_URL: postgresql://umami:${POSTGRES_PASSWORD}@${POSTGRES_CONTAINER:?Required}:5432/umami
       APP_SECRET: ${APP_SECRET:?Required}
       TWO_FACTOR_ENCRYPTION_KEY: ${TWO_FACTOR_ENCRYPTION_KEY:?Required}
       SALT_ROTATION: day
@@ -73,3 +57,8 @@ services:
     volumes:
       - ./openlist:/opt/openlist/data
     logging: *logging
+
+networks:
+  database:
+    external: true
+    name: 1panel-network
