@@ -33,13 +33,14 @@ description: 用一句话介绍这篇笔记。
 从一个具体的问题开始记录。
 ```
 
-然后在 `docs/.vitepress/theme/home.ts` 的 `notes` 列表中添加标题、摘要、分类和链接。链接写成 `/notes/my-note` 即可，不需要手动加上 `/blog/`。
+然后在 `docs/.vitepress/theme/content.ts` 的 `featuredNotes` 列表中添加标题、摘要、分类和链接。链接写成 `/notes/my-note` 即可，不需要手动加上 `/blog/`。
 
-如果需要把文章加入侧边栏，可以编辑 `docs/.vitepress/config.mts`。
+专题章节在 `content.ts` 中集中维护，侧边栏与快捷导航会同步更新。工程实践的侧边栏可编辑 `docs/.vitepress/config.mts`。
 
 ## 调整首页
 
-- **文案、项目、笔记**：`docs/.vitepress/theme/home.ts`。
+- **首页文案**：`docs/.vitepress/theme/home.ts`。
+- **专题、章节、笔记卡片**：`docs/.vitepress/theme/content.ts`。
 - **首页布局和交互**：`docs/.vitepress/theme/components/HomePage.vue`。
 - **颜色、字号、间距和移动端布局**：`docs/.vitepress/theme/style.css`。
 
@@ -62,3 +63,9 @@ git push origin master
 ```
 
 GitHub Actions 会构建新镜像，然后更新服务器。通过 Actions 页面确认任务成功，再访问网站检查结果。
+
+## 评论、阅读量与备份
+
+文章下方接入 Artalk 评论，审核通过后公开。阅读量由 Umami 提供，显示按自然日去重的累计阅读；具体口径见[评论与统计说明](/privacy)。文章上线后尽量保持路径稳定，以免把同一篇文章的统计与讨论分散到多个地址。
+
+评论和统计数据库独立于网站容器保存。服务器每天导出一致性备份，Duplicati 通过 OpenList 连接阿里云盘；首次云盘授权与备份加密口令需要在管理界面完成。操作与恢复说明保存在仓库 `deploy/community/README.md`。

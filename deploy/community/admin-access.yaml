@@ -1,0 +1,10 @@
+# Add only after bootstrap has replaced the initial admin password.
+services:
+  artalk:
+    ports: ['192.168.0.108:18081:23366']
+  umami:
+    ports: ['192.168.0.108:18082:3000']
+  duplicati:
+    ports: ['192.168.0.108:18083:8200']
+  openlist:
+    ports: ['192.168.0.108:18084:5244']

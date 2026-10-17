@@ -1,0 +1,75 @@
+name: jfred-community
+services:
+  artalk:
+    image: artalk/artalk-go:2.10.0
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:18081:23366'
+    environment:
+      TZ: Asia/Shanghai
+      ATK_LOCALE: zh-CN
+      ATK_SITE_DEFAULT: JFred
+      ATK_SITE_URL: http://192.168.0.108/blog/
+    volumes:
+      - ./artalk:/data
+    logging: &logging
+      driver: json-file
+      options: { max-size: '10m', max-file: '3' }
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: umami
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Required}
+      POSTGRES_DB: umami
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U umami -d umami']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    logging: *logging
+  umami:
+    image: ghcr.io/umami-software/umami:3.4.0
+    restart: unless-stopped
+    init: true
+    depends_on:
+      db: { condition: service_healthy }
+    ports:
+      - '127.0.0.1:18082:3000'
+    environment:
+      DATABASE_URL: postgresql://umami:${POSTGRES_PASSWORD}@db:5432/umami
+      APP_SECRET: ${APP_SECRET:?Required}
+      TWO_FACTOR_ENCRYPTION_KEY: ${TWO_FACTOR_ENCRYPTION_KEY:?Required}
+      SALT_ROTATION: day
+      TZ: Asia/Shanghai
+      DISABLE_TELEMETRY: '1'
+      TRACKER_SCRIPT_NAME: script.js
+    logging: *logging
+  duplicati:
+    image: duplicati/duplicati:2.4.0.1
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:18083:8200'
+    environment:
+      TZ: Asia/Shanghai
+      SETTINGS_ENCRYPTION_KEY: ${DUPLICATI_SETTINGS_KEY:?Required}
+      DUPLICATI__WEBSERVICE_PASSWORD: ${DUPLICATI_PASSWORD:?Required}
+    volumes:
+      - ./duplicati:/data
+      - /opt/backups/jfred:/source:ro
+      - /opt/backups/jfred-duplicati:/backups
+    logging: *logging
+  openlist:
+    image: openlistteam/openlist:v4.2.7-lite
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:18084:5244'
+    environment:
+      TZ: Asia/Shanghai
+      OPENLIST_ADMIN_PASSWORD: ${OPENLIST_PASSWORD:?Required}
+      UMASK: '077'
+    volumes:
+      - ./openlist:/opt/openlist/data
+    logging: *logging
