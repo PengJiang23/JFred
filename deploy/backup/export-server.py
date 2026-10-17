@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Consistent daily exports, app recovery bundles and content-addressed Docker images."""
+"""Consistent database/app exports; keep Docker image references without image archives."""
 import datetime,fcntl,gzip,hashlib,json,os,pathlib,re,shlex,shutil,sqlite3,subprocess,sys,tarfile,tempfile,time
 os.umask(0o077)
 ROOT=pathlib.Path('/opt/backups/jfred');ROOT.mkdir(parents=True,exist_ok=True)
@@ -150,17 +150,16 @@ try:
  # Container metadata contains environment secrets; only encrypted destinations receive it.
  (OUT/('application-container-inventory-'+STAMP+'.json')).write_text(json.dumps(CS,indent=2))
  (OUT/('application-os-packages-'+STAMP+'.txt')).write_bytes(run(['dpkg-query','-W','-f=${binary:Package}\t${Version}\n']))
- image_dir=ROOT/'application-images';image_dir.mkdir(exist_ok=True)
+ # Keep only image identifiers/digests for re-pulling during recovery; never export layers.
  refs={}
  for c in CS:
   if 'artalk' in name(c):continue
   refs.setdefault(c['Image'],[]).append(c['Config']['Image'])
+ MANIFEST['container_images']=[]
  for image_id,image_refs in refs.items():
-  short=image_id.split(':')[-1][:16];label=re.sub('[^a-zA-Z0-9_.-]','-',image_refs[0].split('@')[0]);filename='application-image-'+label+'-'+short+'.docker.tar.gz';target=image_dir/filename
-  if not target.exists():
-   # Keep original repository tags/digests where possible for Compose recovery.
-   gzip_stream(['docker','image','save',*sorted(set(image_refs))],target);log('Image saved: '+image_refs[0])
-  MANIFEST['images'].append({'id':image_id,'references':image_refs,'file':'application-images/'+filename,'sha256':hashlib.file_digest(target.open('rb'),'sha256').hexdigest()})
+  details=json.loads(run(['docker','image','inspect',image_id]))[0]
+  MANIFEST['container_images'].append({'id':image_id,'references':sorted(set(image_refs)),
+                                     'repo_digests':details.get('RepoDigests') or [],'archive_included':False})
  (OUT/('recovery-manifest-'+STAMP+'.json')).write_text(json.dumps(MANIFEST,ensure_ascii=False,indent=2))
  shutil.copy2('/opt/jfred-backup/RESTORE.md',OUT/'RESTORE-恢复说明.md')
  # Complete named exports remain private; Duplicati encrypts them before upload.
@@ -173,10 +172,7 @@ try:
  if latest.exists():latest.rename(previous)
  OUT.rename(latest)
  if previous.exists():shutil.rmtree(previous)
- # Retain seven days of image versions in local source; Duplicati retains 30-day historical versions.
- wanted={x['file'].split('/')[-1] for x in MANIFEST['images']}
- for f in image_dir.glob('application-image-*.docker.tar.gz'):
-  if f.name not in wanted and time.time()-f.stat().st_mtime>7*86400:f.unlink()
- summary={'completed_at':time.time(),'stamp':STAMP,'database_count':len(MANIFEST['databases']),'application_count':len(MANIFEST['applications']),'image_count':len(MANIFEST['images'])}
+ # Previously exported image archives are retained; no new archives or pruning.
+ summary={'completed_at':time.time(),'stamp':STAMP,'database_count':len(MANIFEST['databases']),'application_count':len(MANIFEST['applications']),'image_count':0,'image_metadata_count':len(MANIFEST['container_images'])}
  (ROOT/'last-export.json').write_text(json.dumps(summary));log('Daily server export complete: '+json.dumps(summary))
 finally:shutil.rmtree(WORK,ignore_errors=True)

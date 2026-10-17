@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Build three atomic, root-only backup views using hard links, not extra copies."""
+"""Build two atomic, root-only backup views using hard links, not extra copies."""
 import hashlib,json,os,pathlib,shutil,tempfile
 
-GROUPS={'databases':'数据库','applications':'应用数据与配置','images':'Docker镜像'}
+GROUPS={'databases':'数据库','applications':'应用数据与配置'}
 
 def group_exports(root):
     root=pathlib.Path(root);daily=root/'daily'
@@ -12,7 +12,6 @@ def group_exports(root):
     files={
         'databases':[daily/x['file'] for x in manifest['databases']],
         'applications':sorted(daily.glob('application-*')),
-        'images':[root/x['file'] for x in manifest['images']],
     }
     expected={manifests[0].name,'RESTORE-恢复说明.md','SHA256SUMS.txt'}
     expected.update(p.name for k in ['databases','applications'] for p in files[k])
@@ -20,14 +19,13 @@ def group_exports(root):
         raise RuntimeError('Unclassified export files; refusing an incomplete grouped backup')
     if any(not values for values in files.values()):raise RuntimeError('An export category is empty')
     checksums={line.split('  ',1)[1]:line.split('  ',1)[0] for line in (daily/'SHA256SUMS.txt').read_text().splitlines()}
-    image_hashes={pathlib.Path(x['file']).name:x['sha256'] for x in manifest['images']}
     stage=pathlib.Path(tempfile.mkdtemp(prefix='.grouped-',dir=root));stage.chmod(0o700)
     try:
         for key,label in GROUPS.items():
             dest=stage/label;dest.mkdir(mode=0o700);hashes=[]
             for source in files[key]+[manifests[0],daily/'RESTORE-恢复说明.md']:
                 digest=hashlib.file_digest(source.open('rb'),'sha256').hexdigest()
-                if digest!=(image_hashes if key=='images' and source.parent!=daily else checksums)[source.name]:
+                if digest!=checksums[source.name]:
                     raise RuntimeError('Export checksum mismatch: '+source.name)
                 os.link(source,dest/source.name);hashes.append(digest+'  '+source.name)
             info={'category':label,'export_created':manifest['created'],'timezone':'Asia/Shanghai',

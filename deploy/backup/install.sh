@@ -35,7 +35,7 @@ Persistent=true
 [Install]
 WantedBy=timers.target
 UNIT
-# Create three independent categories per destination; legacy sets remain untouched.
+# Create two independent categories per destination; legacy sets remain untouched.
 /usr/bin/python3 /opt/jfred-backup/configure-groups.py
 systemctl daemon-reload
 systemctl enable --now jfred-backup.timer

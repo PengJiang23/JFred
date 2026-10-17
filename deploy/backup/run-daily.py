@@ -13,14 +13,11 @@ def api(path,body=None,token=None):
  q=urllib.request.Request(base+path,data=json.dumps(body).encode() if body is not None else None,headers=h)
  with urllib.request.urlopen(q,timeout=30) as f:return json.load(f)
 def token():return api('/auth/login',{'Password':password,'RememberMe':False})['AccessToken']
+assert set(state.get('grouped_backups',{}))=={'databases','applications'},'Configure database/application jobs before running; legacy jobs must remain archived'
 subprocess.run(['/usr/bin/python3','/opt/jfred-backup/export-server.py'],check=True)
-if state.get('grouped_backups'):
- subprocess.run(['/usr/bin/python3','/opt/jfred-backup/group-exports.py'],check=True)
- assert set(state['grouped_backups'])=={'databases','applications','images'},'Incomplete category configuration'
- jobs=[(destination+'/'+category,state['grouped_backups'][category][destination+'_backup_id'])
-       for destination in ['local','cloud'] for category in ['databases','applications','images']]
-else:
- jobs=[(label,state[label+'_backup_id']) for label in ['local','cloud']]
+subprocess.run(['/usr/bin/python3','/opt/jfred-backup/group-exports.py'],check=True)
+jobs=[(destination+'/'+category,state['grouped_backups'][category][destination+'_backup_id'])
+      for destination in ['local','cloud'] for category in ['databases','applications']]
 tasks={}
 for label,backup_id in jobs:
  t=token();i=api('/backup/'+str(backup_id)+'/run',{},t)['ID'];deadline=time.time()+5*3600;tasks[label]=i

@@ -32,7 +32,7 @@ def cloud_files(folder):
         if href.endswith('.aes'):files[href]={'size':item.findtext('.//{DAV:}getcontentlength'),'etag':item.findtext('.//{DAV:}getetag')}
     return files
 cloud_before=json.loads((snapshot/'legacy-cloud-files.json').read_text());assert cloud_files('')==cloud_before,'Legacy cloud files changed'
-cycle=json.loads(pathlib.Path('/opt/backups/jfred/last-cycle.json').read_text());assert len(cycle['tasks'])==6
+cycle=json.loads(pathlib.Path('/opt/backups/jfred/last-cycle.json').read_text());assert len(cycle['tasks'])==2*len(state['grouped_backups'])
 for task in cycle['tasks'].values():assert api('/task/'+str(task))['Status']=='Completed'
 jobs=[]
 for category,group in state['grouped_backups'].items():
@@ -44,9 +44,9 @@ for category,group in state['grouped_backups'].items():
         if destination=='local':assert list(pathlib.Path(group['local_directory']).glob('*.aes')),'New local directory has no AES volumes'
         jobs.append({'category':group['name'],'destination':destination,'backup_id':backup['ID'],'directory':group[destination+'_directory'],'aes':True,'retention_days':30})
 restores=json.loads(pathlib.Path('/home/jiangpeng/jfred-grouped-backup-proof.json').read_text())
-assert len(restores)==6 and all(x['sha256_matches'] for x in restores)
+assert len(restores)==2*len(state['grouped_backups']) and all(x['sha256_matches'] for x in restores)
 proof={'jobs':jobs,'daily_schedule':'02:30 Asia/Shanghai','original_jobs_unchanged':True,
        'original_local_files_unchanged':len(local_before),'original_cloud_files_unchanged':len(cloud_before),
-       'daily_cycle_tasks':cycle['tasks'],'all_six_encrypted_restores_verified':True}
+       'daily_cycle_tasks':cycle['tasks'],'all_active_encrypted_restores_verified':True}
 path=pathlib.Path('/home/jiangpeng/jfred-grouped-backup-layout-proof.json');path.write_text(json.dumps(proof,ensure_ascii=False,indent=2));path.chmod(0o644)
-print('PASS: all six category jobs and restores verified; original local/cloud files and jobs unchanged.',flush=True)
+print('PASS: all active category jobs and restores verified; original local/cloud files and jobs unchanged.',flush=True)

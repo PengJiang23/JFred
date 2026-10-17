@@ -44,7 +44,7 @@ def legacy_cloud_files():
     return result
 cloud_before=legacy_cloud_files();assert cloud_before,'Expected existing encrypted cloud backup files'
 (snapshot/'legacy-cloud-files.json').write_text(json.dumps(cloud_before,ensure_ascii=False,indent=2))
-for category,label in [('databases','数据库'),('applications','应用数据与配置'),('images','Docker镜像')]:
+for category,label in [('databases','数据库'),('applications','应用数据与配置')]:
     group={'name':label,'source':'/source/grouped/'+label+'/'}
     for destination in ['local','cloud']:
         name='每日分类备份 · '+label+' · '+('本机' if destination=='local' else '阿里云盘')
@@ -82,19 +82,23 @@ for category,label in [('databases','数据库'),('applications','应用数据�
     groups[category]=group
 assert legacy_cloud_files()==cloud_before,'Existing cloud backup inventory changed unexpectedly'
 assert local_inventory()==local_before,'Existing local backup inventory changed unexpectedly'
-state.update(grouped_backups=groups,legacy_backup_ids=legacy,grouped_migration_utc=stamp,
-             local_schedule='02:30 Asia/Shanghai, three category jobs after export',
+retired=state.get('retired_grouped_backups',{})
+retired.update({key:value for key,value in state.get('grouped_backups',{}).items() if key not in groups})
+state.update(grouped_backups=groups,retired_grouped_backups=retired,legacy_backup_ids=legacy,grouped_migration_utc=stamp,
+             local_schedule='02:30 Asia/Shanghai, two category jobs after export',
              cloud_schedule='02:30 Asia/Shanghai cycle, after local category copies',
              legacy_policy='Original full-backup sets preserved in place; no scheduled runs or pruning',
-             scope='databases, application data/configuration, Docker images in independent AES backup sets')
+             scope='databases, application data/configuration, image references (no image archives) in independent AES backup sets')
 owner=path.stat();temp=path.with_suffix('.json.new');temp.write_text(json.dumps(state,ensure_ascii=False,indent=2));temp.chmod(0o600);os.chown(temp,owner.st_uid,owner.st_gid);temp.replace(path)
 p=root/'lianxiang-all-service-accounts.txt';text=p.read_text()
-text=text.replace('每天北京时间02:30一次：数据库/应用一致性导出 → 本机AES副本 → 阿里云盘AES副本；历史版本30天。','每天北京时间02:30一次：一致性导出 → 三类本机AES副本 → 三类阿里云盘AES副本；新任务历史版本30天。')
+text=text.replace('三类本机AES副本','两类本机AES副本').replace('三类阿里云盘AES副本','两类阿里云盘AES副本')
+text=text.replace('每天北京时间02:30一次：数据库/应用一致性导出 → 本机AES副本 → 阿里云盘AES副本；历史版本30天。','每天北京时间02:30一次：一致性导出 → 两类本机AES副本 → 两类阿里云盘AES副本；新任务历史版本30天。')
 marker='\n=== 分类备份目录（当前） ===\n';end_marker='=== 分类备份目录结束 ===\n'
-section=marker+'每天北京时间02:30统一执行一次；数据库、应用数据与配置、Docker镜像分别为独立的本机/云端AES任务，恢复口令保持不变。\n'
+section=marker+'每天北京时间02:30统一执行一次；数据库、应用数据与配置分别为独立的本机/云端AES任务，恢复口令保持不变。\n'
 for group in groups.values():section+=group['name']+'：云盘 '+group['cloud_directory']+'；本机 '+group['local_directory']+'\n'
+section+='Docker镜像不再导出或自动备份；已有镜像备份保留，恢复时可重新拉取镜像。\n'
 section+='原完整备份任务ID '+str(legacy)+' 不再自动运行，原文件原位保留，不自动清理。恢复旧日期请选择原完整备份任务。\n'
 section+='恢复新备份：选择对应分类和日期，/source/grouped/对应分类/；包含分类说明和SHA256SUMS.txt。云盘物理分块仍由Duplicati管理。\n'+end_marker
 text=re.sub(re.escape(marker)+'.*?'+re.escape(end_marker),'',text,flags=re.S)+section
 p.write_text(text);p.chmod(0o600)
-print('Six AES jobs configured; original backup sets untouched; recovery state activated.',flush=True)
+print('Four AES jobs configured; original backup sets untouched; recovery state activated.',flush=True)
