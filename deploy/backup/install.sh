@@ -56,7 +56,7 @@ for label in ['local','cloud']:
  # Retire old source tarballs from future versions while retaining their existing encrypted history.
  backup['Sources']=['/source/daily/','/source/application-images/']
  if label=='cloud':
-  for k,v in {'read-write-timeout':'5m','short-timeout':'5m','list-timeout':'15m','asynchronous-concurrent-upload-limit':'2'}.items():
+  for k,v in {'dblock-size':'10mb','read-write-timeout':'5m','short-timeout':'5m','list-timeout':'15m','asynchronous-concurrent-upload-limit':'2'}.items():
    match=next((x for x in backup['Settings'] if x['Name']==k),None)
    if match:match['Value']=v
    else:backup['Settings'].append({'Name':k,'Value':v})
