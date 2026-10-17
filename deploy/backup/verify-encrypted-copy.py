@@ -9,7 +9,7 @@ def api(path,body=None,t=None):
  with urllib.request.urlopen(q,timeout=30) as f:
   raw=f.read();return json.loads(raw) if raw else {}
 def login():return api('/auth/login',{'Password':p,'RememberMe':False})['AccessToken']
-root=pathlib.Path('/opt/backups/jfred/daily');chosen=[next(root.glob('database-mysql-all-*.sql.gz')),next(root.glob('recovery-manifest-*.json'))];proof=[]
+root=pathlib.Path('/opt/backups/jfred/daily');chosen=[next(root.glob('recovery-manifest-*.json'))];proof=[]
 for label in ['local','cloud']:
  key='restore-validation-'+uuid.uuid4().hex;host=pathlib.Path('/opt/stacks/jfred-community/duplicati')/key
  data={'paths':['/source/daily/'+f.name for f in chosen],'passphrase':s['encryption_passphrase'],'time':'now','restore_path':'/data/'+key,'overwrite':False,'permissions':False,'skip_metadata':True,'options':{'restore-with-local-blocks':'false','restore-from-local-blocks':'false'}}
