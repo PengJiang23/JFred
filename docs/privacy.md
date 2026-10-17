@@ -17,23 +17,23 @@ comments: false
 
 Umami 记录页面路径、浏览器、设备、时间和来源等访问数据，用于汇总统计，不保存原始 IP。此站关闭 URL 查询参数采集，并尊重浏览器的 Do Not Track 设置；没有启用会话录屏。
 
-首页和文章只公开汇总数字，不公开访客会话列表。管理面板需要登录。GitHub Pages 镜像不连接内网评论和统计服务。
+首页和文章只公开汇总数字，不公开访客会话列表。管理面板需要登录。GitHub Pages 镜像使用同一 GitHub 评论，不连接内网统计服务。
 
 ## 评论
 
-评论由服务器上的 Artalk 提供。昵称和评论正文会公开展示；邮箱不公开。评论服务会保留必要的 IP、浏览器和时间等信息用于反垃圾与管理，因此这里并不承诺评论完全匿名。
+评论由 [giscus](https://giscus.app/zh-CN) 提供，公开存储在本仓库的 GitHub Discussions。发表评论需要 GitHub 账号，显示你的 GitHub 公开身份；可以在 GitHub 中编辑、删除自己的评论。站点管理员可以隐藏或管理讨论。
 
-新评论需要审核后才公开。请不要提交密码、密钥、真实财务明细或他人的私人信息。当前未接入邮件发送服务，填写邮箱不会自动启用邮件提醒。
+浏览器会连接 giscus 和 GitHub，适用其隐私与服务规则。服务器不再运行评论数据库，不另存评论者的邮箱和 IP。请勿在公开评论中提交密码、密钥或私人信息。
 
 ## 数据保存与备份
 
-评论、统计及服务配置每日北京时间 02:30 做本机一致性导出，保留最近 7 份。Duplicati 于 03:00 生成本机加密备份，03:30 通过 OpenList 的专用 WebDAV 账号将加密备份上传阿里云盘，备份版本保留 30 天。首次本机与云端恢复均已校验文件 SHA256，数据库快照也已通过独立恢复检查。
+服务器数据库和应用每日北京时间 02:30 启动一次备份：完成一致性导出后，依次生成本机加密副本并上传阿里云盘，历史版本保留 30 天。导出按数据库、应用和恢复清单命名；GitHub 评论由 GitHub 托管。首次本机与云端恢复均已校验文件 SHA256，数据库快照也已通过独立恢复检查。
 
 备份包含管理配置和授权信息，本机原始导出需保持私密；云端文件使用 AES 加密，恢复口令由管理员另行保管。云盘授权失效、空间不足或服务故障仍可能导致任务失败，应定期查看任务结果并再次测试恢复。
 
 ## 开源组件
 
 - [Umami](https://github.com/umami-software/umami)：访问统计。
-- [Artalk](https://github.com/ArtalkJS/Artalk)：评论。
+- [giscus](https://github.com/giscus/giscus)：GitHub Discussions 评论。
 - [Duplicati](https://github.com/duplicati/duplicati)：备份。
 - [OpenList](https://github.com/OpenListTeam/OpenList)：云盘与 WebDAV 连接。
