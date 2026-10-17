@@ -64,7 +64,7 @@ for service in ['postgresql','mongodb']:
  target.mkdir(parents=True,exist_ok=True)
  for name in ['.env','docker-compose.yml','data.yml']:
   if (root/name).exists():shutil.copy2(root/name,target/name)
-for name in ['jfred-security.service','jfred-security.timer','beszel-agent.service','jfred-private-ports.service']:
+for name in ['jfred-security.service','jfred-security.timer','beszel-agent.service','jfred-private-ports.service','jfred-alerts.service']:
  f=Path('/etc/systemd/system')/name
  if f.exists():
   target=out/'config'/'systemd';target.mkdir(parents=True,exist_ok=True);shutil.copy2(f,target/name)
@@ -73,6 +73,19 @@ for path in ['/etc/audit/rules.d/70-jfred.rules','/usr/local/sbin/jfred-security
  if f.exists():
   target=out/'config'/'monitor-scripts';target.mkdir(parents=True,exist_ok=True);shutil.copy2(f,target/f.name)
 PYINFRA
+# Incident records and callback audit use consistent SQLite snapshots too.
+python3 - "$work" <<'PYCARDS'
+from pathlib import Path
+import sqlite3,shutil,sys
+out=Path(sys.argv[1])/'alert-cards';out.mkdir()
+f=Path('/var/lib/private/jfred-alerts/incidents.db')
+if f.exists():
+ with sqlite3.connect('file:'+str(f)+'?mode=ro',uri=True) as source,sqlite3.connect(out/'incidents.db') as target:
+  source.backup(target);assert target.execute('PRAGMA integrity_check').fetchone()[0]=='ok'
+for path in ['/opt/jfred-alerts/feishu-cards.py','/opt/jfred-alerts/requirements.txt','/usr/local/sbin/jfred-alertctl']:
+ f=Path(path)
+ if f.exists():shutil.copy2(f,out/f.name)
+PYCARDS
 # Shared PostgreSQL roles allow recreating the application login during disaster recovery.
 pg_admin=$(docker exec "$database_container" printenv POSTGRES_USER)
 docker exec "$database_container" pg_dumpall -U "$pg_admin" --globals-only > "$work/postgres-roles.sql"

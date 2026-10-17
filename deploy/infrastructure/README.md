@@ -122,3 +122,26 @@ Keep `~/.ssh/jfred-service-access.txt`, `~/.ssh/jfred-databases.json` and
 Never recover test data over the running databases. Provision 1Panel PostgreSQL,
 restore app roles and database into an isolated target, check integrity, then
 restore service configuration and reconnect applications.
+
+### 飞书交互告警卡片（2026-10-17）
+
+个人自建应用“联想服务器告警”只授予 `im:message:send_as_bot`，仅 Jumpen 可用，无对外共享。回调订阅 `card.action.trigger`，通过飞书官方 Python SDK 1.7.5 的出站长连接接收，不开放公网回调端口。`jfred-alerts.service` 使用 DynamicUser、只读系统及 LoadCredential；入口只监听宿主机 `127.0.0.1:18088`，需要随机 Bearer token。应用凭证在 `/etc/jfred-monitor/app.json`，不要提交到 Git。
+
+Beszel 每 30 秒提供已满足持续时间的资源告警状态，安全 watcher 提供独立事件。SQLite `/var/lib/private/jfred-alerts/incidents.db` 记录事件、接管者、按钮操作及静默状态。告警首次通知去重；重要异常首次 @全体（当前群只有本人），未接管 15 分钟升级提醒，之后最多每 6 小时一次；接管后停止未接管升级。正常恢复更新原卡片，并发送一次不 @ 的恢复卡片。安全审计类事件可以人工关闭；持续指标人工处理后仍等待监测恢复，避免把“已处理”误当作指标正常。
+
+按钮支持单项静默 30 分钟 / 2 小时、暂停全部 2 小时、立即恢复全部提醒。暂停只影响通知，仍采集并记录；期间恢复且从未推送的事件不会补发。暂停到期自动解除。已发送卡片在暂停期间仍可更新状态。备用签名机器人用于交互服务中断或连续投递失败；全局暂停也会抑制备用通知（使用最近采集的暂停期限）。
+
+管理员命令：
+
+```sh
+sudo jfred-alertctl status
+sudo jfred-alertctl pause 120  # 全部暂停 120 分钟；最长 1440 分钟
+sudo jfred-alertctl resume
+sudo jfred-alertctl test      # 发送明确标记的测试卡片
+```
+
+原 Beszel 通知设置私密备份在 `/etc/jfred-monitor/beszel-notifications-before-cards.json`，正式路由关闭 Beszel 的直接 Webhook，避免重复和绕过静默。签名机器人作为备用仍保留在群中。`configure-monitor.py` 检测交互服务后也会保留此路由。资源 / 安全采集持续运行，NVIDIA MX250 使用率 >98% 持续30分钟、温度≥85°C持续5分钟、显卡采集不可用持续5分钟均受监测。
+
+已验证真实飞书 @全体、Jumpen 接管、原卡片更新、单项静默、全局暂停、恢复通知和演练关闭。持久化测试覆盖重复事件、异群回调拒绝、重复回调保护、异常恢复及复发；实测全局暂停期间事件入库但不推送，已恢复事件不会延后刷屏。SDK 通道实测额外内存约210 MiB（主监控 Beszel + agent 约30 MiB），上限384 MiB，无 Docker/socket/root 权限。
+
+每日导出包含卡片 SQLite 一致性快照、应用配置、源代码、锁定依赖清单和 systemd 单元；恢复时先重建 venv 再恢复数据库。Mac 的账号总览：`~/.ssh/lianxiang-all-service-accounts.txt`，权限600；飞书应用凭证单独存放在 `~/.ssh/jfred-feishu-app.json`。

@@ -16,20 +16,21 @@ def signed_send(text,config=None):
  if result.get('code',result.get('StatusCode',0))!=0:raise RuntimeError('Feishu rejected notification')
 
 class Alerts:
- def __init__(self,state,now):self.state=state;self.now=now;self.messages=[]
+ def __init__(self,state,now):self.state=state;self.now=now;self.messages=[];self.records=[]
  def check(self,key,bad,description,delay=0):
   a=self.state.setdefault(key,{})
   if bad:
    a.setdefault('since',self.now)
    if self.now-a['since']>=delay and (not a.get('active') or self.now-a.get('sent',0)>=21600):
-    self.messages.append('异常：'+description);a.update(active=True,sent=self.now)
+    self.messages.append('异常：'+description);self.records.append({'source':'security','key':key,'title':'服务器安全与服务异常','detail':description,'severity':'critical' if key.startswith(('process:','uid0','gpu-temperature','root-login','backup-')) else 'warning','active':True});a.update(active=True,sent=self.now)
   else:
-   if a.get('active'):self.messages.append('恢复：'+description)
+   if a.get('active'):
+    self.messages.append('恢复：'+description);self.records.append({'source':'security','key':key,'title':'服务器安全与服务异常','detail':description,'active':False})
    self.state.pop(key,None)
  def event(self,key,fingerprint,description):
   a=self.state.setdefault(key,{})
   if fingerprint!=a.get('fingerprint'):
-   self.messages.append('安全事件：'+description);a.update(fingerprint=fingerprint,sent=self.now)
+   self.messages.append('安全事件：'+description);self.records.append({'source':'security-event','key':key+':'+fingerprint,'title':'需要核对的安全事件','detail':description,'severity':'critical' if key in ['uid0','root-login'] else 'warning','active':True});a.update(fingerprint=fingerprint,sent=self.now)
 
 def check(state,now):
  a=Alerts(state.setdefault('alerts',{}),now);since=max(state.get('journal_time',now),now-600)
@@ -119,17 +120,37 @@ def check(state,now):
    name=job['Backup']['Name'];a.check('encrypted-backup:'+str(job['Backup']['ID']),now-finished>36*3600,'加密备份 '+name+' 已超过 36 小时未完成',300)
   a.check('duplicati-collector',False,'无法核对加密备份任务结果',300)
  except Exception:a.check('duplicati-collector',True,'无法核对加密备份任务结果',300)
+ # The card relay polls Beszel; verify its heartbeat without exposing app credentials.
+ try:
+  token=(CONFIG/'ingest-token').read_text().strip()
+  q=urllib.request.Request('http://127.0.0.1:18088/status',data=b'{}',headers={'Content-Type':'application/json','Authorization':'Bearer '+token})
+  with urllib.request.urlopen(q,timeout=5) as r:health=json.load(r)
+  state['notifications_paused_until']=health.get('paused_until',0)
+  state['card_delivery_bad']=bool(health.get('delivery_failure_since') and now-health['delivery_failure_since']>300)
+  a.check('card-delivery',state['card_delivery_bad'],'飞书卡片投递连续失败超过 5 分钟，启用备用通知',0)
+  a.check('card-poller',now-health.get('last_poll',0)>180,'卡片告警的资源状态同步已中断超过 3 分钟',180)
+ except Exception:a.check('card-poller',True,'卡片告警服务不可用，使用原签名机器人备用通知',180)
  # Failed oneshot tasks can be inactive normally; only the failed state is exceptional.
  failed=command(['systemctl','show','jfred-backup.service','--property=Result','--value']).strip()
  a.check('backup-failed',failed not in ['','success'],'数据库一致性导出任务失败',180)
+ state['_card_records']=a.records
  return a.messages
 
 def main():
  ROOT.mkdir(mode=0o700,parents=True,exist_ok=True);f=ROOT/'state.json';state=json.loads(f.read_text()) if f.exists() else {};now=time.time()
  if '--test' in sys.argv:
   signed_send('【联想服务器告警 · 安全监控演练】\n签名验证与通知链路正常。正式告警仅在持续故障、认证失败聚集、敏感配置写入或可疑 root 进程触发时发送；不会自动终止进程或封禁地址。');print('Signed security test delivered.');return
- messages=check(state,now)
- if messages:
+ messages=check(state,now);records=state.pop('_card_records',[])
+ pending=state.get('card_pending',[])+records
+ state['card_pending']=[]
+ failed=False
+ for record in pending:
+  try:
+   token=(CONFIG/'ingest-token').read_text().strip()
+   q=urllib.request.Request('http://127.0.0.1:18088/event',data=json.dumps(record).encode(),headers={'Content-Type':'application/json','Authorization':'Bearer '+token})
+   with urllib.request.urlopen(q,timeout=5) as r:assert json.load(r).get('ok')
+  except Exception:state['card_pending'].append(record);failed=True
+ if messages and (failed or state.get('card_delivery_bad')) and now>=state.get('notifications_paused_until',0):
   signed_send('【联想服务器告警】\n'+'\n'.join(messages[:12])+('\n其余 '+str(len(messages)-12)+' 项请登录监控面板查看。' if len(messages)>12 else '')+'\n监控：http://10.144.144.66:18086/')
   print('Security notification delivered:',len(messages),'items')
  temp=f.with_suffix('.tmp');temp.write_text(json.dumps(state));temp.chmod(0o600);temp.replace(f)

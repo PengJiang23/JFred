@@ -15,7 +15,7 @@ token=registration['token']
 p=r/'beszel-agent.env';p.write_text('KEY="'+key+'"\nTOKEN='+token+'\nHUB_URL=http://127.0.0.1:18086\nDISABLE_SSH=true\nGPU_COLLECTOR=nvidia-smi\nDOCKER_IMAGE_CHECK=false\nDATA_DIR=/var/lib/beszel-agent\n');p.chmod(0o600)
 # Use the permanent registration token: the local agent registers and reconnects itself.
 feishu=json.loads((r/'jfred-feishu.json').read_text());webhook=urllib.parse.urlparse(feishu['webhook']);url='lark://'+webhook.hostname+'/'+webhook.path.rsplit('/',1)[-1]+'?'+urllib.parse.urlencode({'secret':feishu['secret']})
-settings=api('/api/collections/user_settings/records?perPage=10',t=t)['items'];existing=next((x for x in settings if x['user']==uid),None);value=(existing or {}).get('settings',{});value.update({'emails':[],'webhooks':[url]})
+settings=api('/api/collections/user_settings/records?perPage=10',t=t)['items'];existing=next((x for x in settings if x['user']==uid),None);value=(existing or {}).get('settings',{});value.update({'emails':[],'webhooks':[] if pathlib.Path('/etc/systemd/system/jfred-alerts.service').exists() else [url]})
 if existing:api('/api/collections/user_settings/records/'+existing['id'],{'settings':value},t,'PATCH')
 else:api('/api/collections/user_settings/records',{'user':uid,'settings':value},t)
 # Store no webhook in console output; test result is reduced to success/failure.
