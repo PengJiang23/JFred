@@ -54,7 +54,7 @@ jobs:
     needs: build
     if: github.repository == 'PengJiang23/JFred' && github.ref == 'refs/heads/master'
     runs-on: [self-hosted, Linux, X64, jfred-deploy]
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       packages: read
     steps:
